@@ -104,7 +104,7 @@ export function createBodyVariable(
 
 // TODO we'll clean up some day, but for now, this function is not as bad as it could be...
 // tslint:disable-next-line:cognitive-complexity
-export function createBody(baseUrl: string, methodStructure: MethodDeclarationStructure): WriterFunction {
+export function createBody(baseUrl: string, methodStructure: MethodDeclarationStructure, returnPromises = true): WriterFunction {
   const skipDecorator: OptionalKind<DecoratorStructure> = methodStructure.decorators.find(dec =>
     ['AutoGeneratorSkip'].includes(dec.name),
   );
@@ -177,6 +177,6 @@ export function createBody(baseUrl: string, methodStructure: MethodDeclarationSt
     writer.write('`' + url + '`');
     writer.conditionalWrite(!!bodyParam, `, ${bodyParam}`);
     writer.conditionalWrite(!!queryStr, `, { params: this.parametrize(${queryStr}) }`);
-    writer.write(').toPromise();');
+    writer.write(`).${returnPromises ? '.toPromise()' : ''};`);
   };
 }

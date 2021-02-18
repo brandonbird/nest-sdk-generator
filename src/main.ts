@@ -120,7 +120,7 @@ const configFileName = 'nest-sdk-gen.config.json';
       const baseUrl = config.apiBase + '/' + unwrapQuotes((<string[]>ctrlDec.arguments)[0]);
 
       classStructure.methods.forEach((methodStructure: MethodDeclarationStructure, index: number) => {
-        const body = createBody(baseUrl, methodStructure);
+        const body = createBody(baseUrl, methodStructure, config.returnPromises);
 
         // if createBody returns null, it's a method we can't process, i.e. doesn't have @Get or is private, or is skipped
         if (!body) {
@@ -131,7 +131,7 @@ const configFileName = 'nest-sdk-gen.config.json';
           name: methodStructure.name,
           returnType: methodStructure.returnType,
           overloads: methodStructure.overloads,
-          isAsync: methodStructure.isAsync,
+          isAsync: config.returnPromises ? methodStructure.isAsync : false,
 
           leadingTrivia: index === 0 ? commentHeader(cls.getName()) : '',
           parameters: removeParameterDecorators(

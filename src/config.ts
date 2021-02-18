@@ -9,6 +9,7 @@ export interface GeneratorConfig {
   serviceName?: string;
   whiteListDecorators?: string[];
   apiBase?: string;
+  returnPromises?: boolean;
 }
 
 export interface Import {
@@ -27,6 +28,7 @@ const defaultConfig: GeneratorConfig = {
   apiBase: '/api',
   tsConfigFilePath: './tsconfig.json',
   whiteListDecorators: ['Body', 'Param', 'Query', 'UploadedFile'],
+  returnPromises: true,
 };
 
 let config: GeneratorConfig;
