@@ -3,6 +3,7 @@
   "version": "0.3.0",
   "description": "Automatically generate an SDK from your Nest Controllers.",
   "main": "src/main.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc -P ./tsconfig.json",
     "build:watch": "watch 'npm run build' ./src/",
