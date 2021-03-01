@@ -16,7 +16,7 @@ interface FileUploadMap {
   [key: string]: File;
 }
 
-export class BaseService {
+export class BaseClient {
   ////////////////////
   // Helper Methods //
   ////////////////////

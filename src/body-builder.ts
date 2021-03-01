@@ -177,6 +177,6 @@ export function createBody(baseUrl: string, methodStructure: MethodDeclarationSt
     writer.write('`' + url + '`');
     writer.conditionalWrite(!!bodyParam, `, ${bodyParam}`);
     writer.conditionalWrite(!!queryStr, `, { params: this.parametrize(${queryStr}) }`);
-    writer.write(').toPromise();');
+    writer.write(`);`);
   };
 }
