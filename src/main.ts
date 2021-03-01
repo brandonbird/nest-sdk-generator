@@ -21,11 +21,16 @@ import {
 } from 'ts-morph';
 import { createBody } from './body-builder';
 import { ConfigHelper, GeneratorConfig } from './config';
-import { commentHeader, removeParameterDecorators, removeUnsupportedParams, unwrapQuotes } from './util';
+import {
+  removeParameterDecorators,
+  removeUnsupportedParams,
+  unwrapQuotes,
+} from './util';
 
 const configFileName = 'nest-sdk-gen.config.json';
 
 (async () => {
+  console.log('Reading config...');
   const configPath = await findUp(configFileName);
   if (!configPath) {
     throw new Error(`Could not find ${configFileName}. You must create one. See the docs`);
@@ -61,94 +66,118 @@ const configFileName = 'nest-sdk-gen.config.json';
     },
   });
 
-  const sourceFile: SourceFile = project
-    .addExistingSourceFile(path.join(__dirname, `../base-service.ts`))
-    .copy(path.resolve(rootPath, config.outputPath), { overwrite: true });
+  console.log('Gathering paths...');
+  const paths: string[] = _.orderBy(await globby(config.paths), p =>
+    p.toLowerCase()
+  );
 
-  sourceFile.addImportDeclarations([
-    {
-      namedImports: ['Injectable'],
-      moduleSpecifier: '@angular/core',
-    },
-    {
-      namedImports: ['HttpClient'],
-      moduleSpecifier: '@angular/common/http',
-    },
-    ...config.extraImports,
-  ]);
+  const baseClientFile: SourceFile = project.addExistingSourceFile(
+    path.join(__dirname, `../base-client.ts`)
+  );
 
-  const serviceClass: ClassDeclaration = sourceFile.getClassOrThrow('BaseService');
+  baseClientFile.copy(
+    path.resolve(rootPath, path.join(config.outputPath, 'base-client.ts')),
+    { overwrite: true }
+  );
 
-  const existingMethods = serviceClass.getMethods();
-
-  serviceClass.set({
-    name: config.serviceName,
-    isExported: true,
-    decorators: [
-      {
-        name: 'Injectable',
-        arguments: config.providedIn ? [`{ providedIn: ${config.providedIn} }`] : [],
-      },
-    ],
-  });
-
-  serviceClass
-    .addConstructor({
-      parameters: [
-        {
-          name: 'httpClient',
-          scope: Scope.Protected,
-          type: 'HttpClient',
-        },
-      ],
+  paths
+    .map((filePath) => {
+      filePath = path.resolve(rootPath, filePath);
+      const classes: ClassDeclaration[] = project
+        .addExistingSourceFile(filePath)
+        .getClasses();
+      return classes.find(cls => cls.getDecorator('Controller'));
     })
-    .setOrder(0);
+    .filter(cls => !!cls)
+    .forEach(cls => {
+      const serviceName = cls.getName().replace('Controller', 'Client');
 
-  const paths: string[] = _.orderBy(await globby(config.paths), p => p.toLowerCase());
+      console.log(`Generating client service ${serviceName} for Nest controller ${cls.getName()}...`);
 
-  paths.forEach(filePath => {
-    filePath = path.resolve(rootPath, filePath);
-    const classes: ClassDeclaration[] = project.addExistingSourceFile(filePath).getClasses();
+      const clientServiceFile = project.createSourceFile(
+        path.resolve(rootPath, path.join(config.outputPath, `${_.kebabCase(serviceName)}.service.ts`)),
+        '',
+        { overwrite: true }
+      );
 
-    classes.forEach((cls: ClassDeclaration) => {
+      clientServiceFile.addImportDeclarations([
+        {
+          namedImports: ['Injectable'],
+          moduleSpecifier: '@angular/core',
+        },
+        {
+          namedImports: ['HttpClient'],
+          moduleSpecifier: '@angular/common/http',
+        },
+        {
+          namedImports: ['BaseClient'],
+          moduleSpecifier: './base-client',
+        },
+        ...config.extraImports,
+      ]);
+    
+      const serviceClass = clientServiceFile.addClass({
+        name: serviceName,
+        isExported: true,
+        decorators: [
+          {
+            name: 'Injectable',
+            arguments: config.providedIn
+              ? [`{ providedIn: ${config.providedIn} }`]
+              : [],
+          },
+        ],
+        extends: 'BaseClient'
+      });
+
+      serviceClass
+        .addConstructor({
+          parameters: [
+            {
+              name: 'httpClient',
+              scope: Scope.Protected,
+              type: 'HttpClient',
+            },
+          ],
+        })
+        .setOrder(0)
+        .setBodyText('super();');
+
       const classStructure: ClassDeclarationStructure = cls.getStructure();
 
       const ctrlDec: OptionalKind<DecoratorStructure> = classStructure.decorators.find(
-        dec => dec.name === 'Controller',
+        dec => dec.name === 'Controller'
       );
       // TODO normalize slash
       const baseUrl = config.apiBase + '/' + unwrapQuotes((<string[]>ctrlDec.arguments)[0]);
 
       classStructure.methods.forEach((methodStructure: MethodDeclarationStructure, index: number) => {
-        const body = createBody(baseUrl, methodStructure, config.returnPromises);
+          const body = createBody(
+            baseUrl,
+            methodStructure
+          );
 
-        // if createBody returns null, it's a method we can't process, i.e. doesn't have @Get or is private, or is skipped
-        if (!body) {
-          return;
+          // if createBody returns null, it's a method we can't process, i.e. doesn't have @Get or is private, or is skipped
+          if (!body) {
+            return;
+          }
+
+          serviceClass.addMethod({
+            name: methodStructure.name,
+            overloads: methodStructure.overloads,
+            parameters: removeParameterDecorators(
+              removeUnsupportedParams(
+                methodStructure.parameters,
+                config.whiteListDecorators
+              )
+            ),
+            statements: body,
+          });
         }
-
-        serviceClass.addMethod({
-          name: methodStructure.name,
-          returnType: methodStructure.returnType,
-          overloads: methodStructure.overloads,
-          isAsync: config.returnPromises ? methodStructure.isAsync : false,
-
-          leadingTrivia: index === 0 ? commentHeader(cls.getName()) : '',
-          parameters: removeParameterDecorators(
-            removeUnsupportedParams(methodStructure.parameters, config.whiteListDecorators),
-          ),
-          statements: body,
-        });
-      });
+      );
+      clientServiceFile.fixMissingImports().organizeImports();
     });
-  });
 
-  // order helper methods
-  // existingMethods.forEach(method => {
-  //   method.setOrder(-1);
-  // });
+  project.save();
 
-  sourceFile.fixMissingImports().organizeImports();
-
-  await sourceFile.save();
-})().catch(err => console.error(err));
+})().catch((err) => console.error(err));

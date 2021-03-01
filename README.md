@@ -12,7 +12,7 @@ Example Config:
 {
   "$schema": "./node_modules/@matchbook-lab/nest-sdk-generator/config.schema.json",
   "config": {
-    "outputPath": "./client/app/services/api/api.service.ts",
+    "outputPath": "./client/app/services/api/",
     "tsConfigFiledPath": "./server/tsconfig.server.json",
     "paths": [
       "./server/api/**/*.controller.ts"
@@ -48,7 +48,7 @@ export interface Import {
 }
 ``` 
 
-When run, it will take this:
+When run, it will take each controller like this:
 
 ```ts
 @Controller('courses')
@@ -64,17 +64,17 @@ export class CourseController {
 }
 ```
 
-and create an Angular service:
+and create a corresponding Angular service:
 
 ```ts
 @Injectable({ providedIn: 'root' })
-export class ApiService {
-  constructor(protected httpClient: HttpClient) {}
+export class CourseClient extends BaseClient {
+  constructor(protected httpClient: HttpClient) {
+    super();
+  }
 
   async findCourse(id: number | string, includeInactive: boolean = false): Promise<Course> {
-    return this.httpClient
-      .get<Course>(`/api/courses/${id}`, { params: this.parametrize({ includeUserCourses }) })
-      .toPromise();
+    return this.httpClient.get<Course>(`/api/courses/${id}`, { params: this.parametrize({ includeUserCourses }) });
   }
 
   // ...

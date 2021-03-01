@@ -20,11 +20,6 @@ export function removeUnsupportedParams(
   });
 }
 
-export function commentHeader(str: string) {
-  const ends = _.pad(`/`, str.length + 6, '/');
-  return `\n${ends}\n// ${str} //\n${ends}\n\n`;
-}
-
 export function unwrapQuotes(str: string): string {
   return _.trim(str, '\'"`');
 }
@@ -33,6 +28,6 @@ export function normalizeSlashes(base: string, url: string): string {
   return _.trimEnd(_.trimEnd(base, '/') + '/' + _.trim(url.replace(/\/+/, '/'), '/'), '/');
 }
 
-export function unwrapAsync(type: string): string {
+export function unwrapAsync(type: string = 'unknown'): string {
   return type.replace(/(?:Observable|Promise)<(.+?)>/, '$1');
 }
