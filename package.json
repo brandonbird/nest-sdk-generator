@@ -2,16 +2,13 @@
   "name": "@matchbook-lab/nest-sdk-generator",
   "version": "0.3.0",
   "description": "Automatically generate an SDK from your Nest Controllers.",
-  "main": "dist/main.js",
+  "main": "src/main.ts",
   "scripts": {
     "build": "tsc -P ./tsconfig.json",
     "build:watch": "watch 'npm run build' ./src/",
     "release": "np --no-tests",
     "test": "echo \"Error: no test specified\" && exit 1",
     "version": "npm run build"
-  },
-  "bin": {
-    "nest-sdk-gen": "dist/main.js"
   },
   "repository": {
     "type": "git",
